@@ -2,7 +2,7 @@ import numpy as np
 
 
 
-def sigmoid_act(x, derivate = False):
+def sigmoid_act(x, derivate=False):
     sigmoid = lambda X: (1 / (1 + np.exp(-X)))
     if(derivate == True):
         f = sigmoid(x) * (1 - sigmoid(x))
@@ -33,6 +33,10 @@ class neural_layer(object):
         self.neurons = []
         self.v = np.array([])
         self.w = w_in
+        self.d_w = np.empty((self.w.shape[0], 0))
+        self.d = np.array([])
+        self.l_rate = 0.3
+        self.target_v = np.array([])
         self.pos = pos
         for i in range(n_neurons):
             if(self.pos != "input"):
@@ -41,6 +45,7 @@ class neural_layer(object):
                 self.neurons.append(neural_neuron(layer=pos, pos=i+1))
         self.bias = bias
         self.y = np.array([])
+        self.y_ext = np.array([])
         self.n_neurons = n_neurons
     def feedforward(self, x_in=np.array([])):
         if(self.pos != "input"):
@@ -52,6 +57,21 @@ class neural_layer(object):
             self.y = np.append(self.y, self.neurons[neuron].z)
         if(self.pos != "output"):
             self.y = np.insert(self.y, 0, self.bias)
+    def backpropagation(self, target=np.array([]), l_rate=0.3, y_ext=np.array([])):
+        self.target_v = target
+        self.l_rate = l_rate
+        self.y_ext = y_ext
+        match(self.pos):
+            case "output":
+                self.d = (self.target_v - self.y) * np.vectorize(sigmoid_act)(self.y, derivate=True)
+                for i in range(len(self.d)):
+                    column = self.l_rate * self.d[i] * self.y_ext
+                    self.d_w = np.hstack((self.d_w, column.reshape(-1, 1)))
+                    #self.w[:,i] -= self.d_w[:,i]
+            case "input":
+                pass
+    def update_weights(self):
+        self.w -= self.d_w
 
 class neural_network(object):
     def __init__(self, l_rate=0.3, epoch=1000, bias=1, 
@@ -64,7 +84,7 @@ class neural_network(object):
         self.input_v = np.array([])
         self.output_v = np.array([])
         self.target_v = np.array([])
-        self.error_v = np.array([])
+        self.cost_v = np.array([])
         self.error_epoch = 0
         self.l_rate = l_rate
         self.epoch = epoch
@@ -80,7 +100,9 @@ class neural_network(object):
         self.layer_hidden.feedforward(self.layer_input.y)
         self.layer_output.feedforward(self.layer_hidden.y)
         self.output_v = self.layer_output.y
+    def backpropagation(self):
+        self.layer_output.backpropagation(target=self.target_v, l_rate=self.l_rate, y_ext=self.layer_hidden.y)
     def error(self, target=np.array([])):
         self.target_v = target
-        self.error_v = np.square(self.target_v - self.output_v)
-        self.error_epoch = np.sum(self.error_v)
+        self.cost_v = np.square(self.target_v - self.output_v)
+        self.error_epoch = np.sum(self.cost_v)

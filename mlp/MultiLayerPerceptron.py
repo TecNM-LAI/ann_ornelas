@@ -61,14 +61,26 @@ class neural_network(object):
         self.lin = layer_input_neurons
         self.lhn = layer_hidden_neurons
         self.lon = layer_output_neurons
+        self.input_v = np.array([])
+        self.output_v = np.array([])
+        self.target_v = np.array([])
+        self.error_v = np.array([])
+        self.error_epoch = 0
+        self.l_rate = l_rate
+        self.epoch = epoch
+        self.bias = bias
         self.w_hidden = np.random.uniform(-1, 1, size=(self.lin+1, self.lhn))
         self.w_output = np.random.uniform(-1, 1, size=(self.lhn+1, self.lon))
-        self.layer_input = neural_layer(bias=bias, n_neurons=self.lin, pos="input")
-        self.layer_hidden = neural_layer(w_in=self.w_hidden, bias=bias, n_neurons=self.lhn, pos="hidden")
+        self.layer_input = neural_layer(bias=self.bias, n_neurons=self.lin, pos="input")
+        self.layer_hidden = neural_layer(w_in=self.w_hidden, bias=self.bias, n_neurons=self.lhn, pos="hidden")
         self.layer_output = neural_layer(w_in=self.w_output, n_neurons=self.lon, pos="output")
-        self.input_v = np.array([])
     def feedforward(self, x_in=np.array([])):
         self.input_v = x_in
         self.layer_input.feedforward(x_in=self.input_v)
         self.layer_hidden.feedforward(self.layer_input.y)
         self.layer_output.feedforward(self.layer_hidden.y)
+        self.output_v = self.layer_output.y
+    def error(self, target=np.array([])):
+        self.target_v = target
+        self.error_v = np.square(self.target_v - self.output_v)
+        self.error_epoch = np.sum(self.error_v)

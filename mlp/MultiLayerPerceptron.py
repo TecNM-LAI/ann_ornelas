@@ -33,8 +33,12 @@ class neural_layer(object):
         self.neurons = []
         self.v = np.array([])
         self.w = w_in
+        self.w_ext = np.array([])
         self.d_w = np.empty((self.w.shape[0], 0))
         self.d = np.array([])
+        self.d_ext = np.array([])
+        self.d_in = np.array([])
+        self.dp = np.array([])
         self.l_rate = 0.3
         self.target_v = np.array([])
         self.pos = pos
@@ -57,21 +61,35 @@ class neural_layer(object):
             self.y = np.append(self.y, self.neurons[neuron].z)
         if(self.pos != "output"):
             self.y = np.insert(self.y, 0, self.bias)
-    def backpropagation(self, target=np.array([]), l_rate=0.3, y_ext=np.array([])):
-        self.target_v = target
+    def backpropagation(self, target=np.array([]), l_rate=0.3, y_ext=np.array([]), w_ext=np.array([]), d_ext=np.array([])):
         self.l_rate = l_rate
         self.y_ext = y_ext
         match(self.pos):
             case "output":
+                self.target_v = target
+                self.d_w = np.empty((self.w.shape[0], 0))
                 self.d = (self.target_v - self.y) * np.vectorize(sigmoid_act)(self.y, derivate=True)
                 for i in range(len(self.d)):
                     column = self.l_rate * self.d[i] * self.y_ext
                     self.d_w = np.hstack((self.d_w, column.reshape(-1, 1)))
                     #self.w[:,i] -= self.d_w[:,i]
-            case "input":
-                pass
+            case "hidden":
+                self.w_ext = w_ext
+                self.d_ext = d_ext
+                self.d_in = np.empty((self.w_ext.shape[0], 0))
+                self.d_w = np.empty((self.w_ext.shape[0], 0))
+                for i in range(len(self.d_ext)):
+                    column = self.d_ext[i] * self.w_ext[:, i]
+                    self.d_in = np.hstack((self.d_in, column.reshape(-1, 1)))
+                for i in range(self.d_in.shape[1]):
+                    column = self.l_rate * self.d_in[:, i] * np.vectorize(sigmoid_act)(self.y_ext, derivate=True)
+                    self.d_w = np.hstack((self.d_w, column.reshape(-1, 1)))
     def update_weights(self):
-        self.w -= self.d_w
+        match(self.pos):
+            case "output":
+                self.w += self.d_w
+            case "hidden":
+                pass
 
 class neural_network(object):
     def __init__(self, l_rate=0.3, epoch=1000, bias=1, 
@@ -102,6 +120,10 @@ class neural_network(object):
         self.output_v = self.layer_output.y
     def backpropagation(self):
         self.layer_output.backpropagation(target=self.target_v, l_rate=self.l_rate, y_ext=self.layer_hidden.y)
+        self.layer_hidden.backpropagation(l_rate=self.l_rate, y_ext=self.layer_hidden.y, w_ext=self.layer_output.w, d_ext=self.layer_output.d)
+    def update_weights(self):
+        self.layer_output.update_weights()
+        self.layer_hidden.update_weights()
     def error(self, target=np.array([])):
         self.target_v = target
         self.cost_v = np.square(self.target_v - self.output_v)
